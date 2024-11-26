@@ -1,8 +1,86 @@
 import csv
+from bs4 import BeautifulSoup as bs
+import time as _time
 import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import StaleElementReferenceException
+from selenium.webdriver.common.action_chains import ActionChains
 
-teams = pd.read_csv('../collegeSwimmingTeams.csv')
+def getTeamID(team_name):
+	team_number = -1
 
-events = {'25 Y Free' : '125Y', '25 Y Back' : '225 Y', '25 Y Breast' : '325Y', '25 Y Fly' : '425Y', '50 Y Free' : '150Y', '75 Y Free' : '175Y', '100 Y Free' : '1100Y', '125 Y Free' : '1125Y', '200 Y Free' : '1200Y', '400 Y Free' : '1400Y', '500 Y Free' : '1500Y', '800 Y Free' : '1800Y', '1000 Y Free' : '11000Y', '1500 Y Free' : '11500Y', '1650 Y Free' : '11650Y', '50 Y Back' : '250Y', '100 Y Back': '2100Y', '200 Y Back' : '2200Y', '50 Y Breast' : '350Y', '100 Y Breast' : '3100Y', '200 Y Breast' : '3200Y', '50 Y Fly' : '450Y', '100 Y Fly' : '4100Y', '200 Y Fly' : '4200Y', '100 Y IM' : '5100Y', '200 Y IM' : '5200Y', '400 Y IM' : '5400Y', '200 Free Relay' : 6200, '400 Free Relay' : 6400, '800 Free Relay' : 6800, '200 Medley Relay' : 7200, '400 Medley Relay' : 7400, '1 M Diving' : 'H1', '1 M Diving (6 dives)' : 'H16', '3 M Diving ' : 'H3', '3 M Diving (6 dives)' : 'H36', '7M Diving' : 'H75', '7M Diving (5 dives)' : 'H75Y','Platform Diving' : 'H2', '50 Individual' : 'H50', '100 Individual' : 'H100', '200 Individual' : 'H200', 
-'25 S Free' : '125S', '25 S Back' : '225 S', '25 S Breast' : '325S', '25 S Fly' : '425S', '50 S Free' : '150S', '75 S Free' : '175S', '100 S Free' : '1100S', '125 S Free' : '1125S', '200 S Free' : '1200S', '400 S Free' : '1400S', '500 S Free' : '1500S', '800 S Free' : '1800S', '1000 S Free' : '11000S', '1500 S Free' : '11500S', '1650 S Free' : '11650S', '50 S Back' : '250S', '100 S Back': '2100S', '200 S Back' : '2200S', '50 S Breast' : '350S', '100 S Breast' : '3100S', '200 S Breast' : '3200S', '50 S Fly' : '450S', '100 S Fly' : '4100S', '200 S Fly' : '4200S', '100 S IM' : '5100S', '200 S IM' : '5200S', '400 S IM' : '5400S',
-'50 L Free' : '150L', '100 L Free' : '1100L', '200 L Free' : '1200L', '400 L Free' : '1400L', '500 L Free' : '1500L', '800 L Free' : '1800L', '1000 L Free' : '11000L', '1500 L Free' : '11500L', '1650 L Free' : '11650L', '50 L Back' : '250L', '100 L Back': '2100L', '200 L Back' : '2200L', '50 L Breast' : '350L', '100 L Breast' : '3100L', '200 L Breast' : '3200L', '50 L Fly' : '450L', '100 L Fly' : '4100L', '200 L Fly' : '4200L', '100 L IM' : '5100L', '200 L IM' : '5200L', '400 L IM' : '5400L'}
+	#search for the specified team
+	for index, row in teams.iterrows():
+		if row['team_name'] == team_name:
+			team_number = row['team_ID']
+	return team_number
+
+def getWebpage(url):
+	#set driver options
+	chrome_options = Options()
+	chrome_options.add_argument("--headless")
+	driver = webdriver.Chrome(options = chrome_options)
+	ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
+	driver.get(url)
+	print('STOP')
+	print(url)
+	_time.sleep(3)
+	html = driver.page_source
+
+	soup = bs(html, 'html.parser')
+	try:
+		table = soup.find('table', attrs={'class': 'c-table-clean'})
+		if table:
+			teams_list = table.find('tbody').find_all('tr')
+			print("Teams list found!")
+			# Access the fourth <tr> (index starts at 0, so the fourth is index 3)
+			fourth_tr = teams_list[3]
+
+			# Print or process the fourth <tr>
+			print(fourth_tr)
+		else:
+			print("Table with class 'c-table-clean' not found.")
+	except AttributeError:
+		print("Error: The table or tbody element is missing.")
+
+
+
+teams = pd.read_csv('collegeSwimmingTeams.csv')
+
+# 1 = free
+# 2 = back
+# 3 = breast
+# 4 = fly
+# 5 = IM
+# 6 = free relay
+# 7 = medley relay
+
+events = ['150', '1100', '1200', '1500', '11000', '11650',
+			'250', '2100', '2200',
+			'350', '3100', '3200',
+			 '450', '4100', '4200',
+			 '5100', '5200', '5400',
+			 '6200', '6400', '6800',
+			 '7200', '7400',
+			 'split_150', 'split_1100', 'split_1200',
+			 'split_250', 'split_350', 'split_3100',
+			 'split_450', 'split_4100']
+
+temp_events = ['150']
+
+
+for value in teams.iloc[:, 0]:  # .iloc[:, 0] selects the first column
+	team = value
+	curr_id = getTeamID(value)
+	for event in temp_events:
+		url = 'https://www.swimcloud.com/team/'+ str(curr_id) + '/times/?dont_group=false&event='+ event + '&event_course=Y&gender=M&page=1&region&season_id=27&tag_id&team_id=' + str(curr_id) + '&year=2024'
+		getWebpage(url)
+		
+
